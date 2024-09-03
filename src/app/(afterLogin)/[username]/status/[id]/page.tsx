@@ -1,95 +1,62 @@
-import Image from 'next/image'
-import styles from './page.module.css'
+import BackButton from "@/app/(afterLogin)/_component/BackButton";
+import style from "./singlePost.module.css";
+import CommentForm from "@/app/(afterLogin)/[username]/status/[id]/_component/CommentForm";
+import SinglePost from "@/app/(afterLogin)/[username]/status/[id]/_component/SinglePost";
+import {
+  dehydrate,
+  HydrationBoundary,
+  QueryClient,
+} from "@tanstack/react-query";
+import { getComments } from "@/app/(afterLogin)/[username]/status/[id]/_lib/getComments";
+import React from "react";
+import Comments from "@/app/(afterLogin)/[username]/status/[id]/_component/Comments";
+import { User } from "@/model/User";
+import { Post } from "@/model/Post";
+import { getSinglePostServer } from "@/app/(afterLogin)/[username]/status/[id]/_lib/getSinglePostServer";
+import { getUserServer } from "@/app/(afterLogin)/[username]/_lib/getUserServer";
 
-export default function Home() {
-    return (
-        <main className={styles.main}>
-            <div className={styles.description}>
-                <p>
-                    Get started by editing&nbsp;
-                    <code className={styles.code}>src/app/page.tsx</code>
-                </p>
-                <div>
-                    <a
-                        href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >
-                        By{' '}
-                        <Image
-                            src="/vercel.svg"
-                            alt="Vercel Logo"
-                            className={styles.vercelLogo}
-                            width={100}
-                            height={24}
-                            priority
-                        />
-                    </a>
-                </div>
-            </div>
+export async function generateMetadata({ params }: Props) {
+  const user: User = await getUserServer({
+    queryKey: ["users", params.username],
+  });
+  const post: Post = await getSinglePostServer({
+    queryKey: ["posts", params.id],
+  });
+  return {
+    title: `Z에서 ${user.nickname} 님 : ${post.content}`,
+    description: post.content,
+  };
+}
 
-            <div className={styles.center}>
-                <Image
-                    className={styles.logo}
-                    src="/next.svg"
-                    alt="Next.js Logo"
-                    width={180}
-                    height={37}
-                    priority
-                />
-            </div>
+type Props = {
+  params: { id: string; username: string };
+};
+export default async function Page({ params }: Props) {
+  const { id } = params;
+  const queryClient = new QueryClient();
+  await queryClient.prefetchQuery({
+    queryKey: ["posts", id],
+    queryFn: getSinglePostServer,
+  });
+  await queryClient.prefetchQuery({
+    queryKey: ["posts", id, "comments"],
+    queryFn: getComments,
+  });
+  const dehydratedState = dehydrate(queryClient);
 
-            <div className={styles.grid}>
-                <a
-                    href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-                    className={styles.card}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    <h2>
-                        Docs <span>-&gt;</span>
-                    </h2>
-                    <p>Find in-depth information about Next.js features and API.</p>
-                </a>
-
-                <a
-                    href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-                    className={styles.card}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    <h2>
-                        Learn <span>-&gt;</span>
-                    </h2>
-                    <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-                </a>
-
-                <a
-                    href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-                    className={styles.card}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    <h2>
-                        Templates <span>-&gt;</span>
-                    </h2>
-                    <p>Explore starter templates for Next.js.</p>
-                </a>
-
-                <a
-                    href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-                    className={styles.card}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    <h2>
-                        Deploy <span>-&gt;</span>
-                    </h2>
-                    <p>
-                        Instantly deploy your Next.js site to a shareable URL with Vercel.
-                    </p>
-                </a>
-            </div>
-        </main>
-    )
+  return (
+    <div className={style.main}>
+      <HydrationBoundary state={dehydratedState}>
+        <div className={style.header}>
+          <BackButton />
+          <h3 className={style.headerTitle}>게시하기</h3>
+        </div>
+        <SinglePost id={id} />
+        <CommentForm id={id} />
+        <div>
+          <Comments id={id} />
+        </div>
+      </HydrationBoundary>
+    </div>
+  );
 }
